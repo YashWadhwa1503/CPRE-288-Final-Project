@@ -16,7 +16,9 @@
 #ifndef UART_H_
 #define UART_H_
 
+volatile int doSomething;
 #include <inc/tm4c123gh6pm.h>
+#include "Timer.h"
 
 // UART1 device initialization for CyBot to PuTTY
 void uart_init(void);
@@ -31,5 +33,9 @@ char uart_receive(void);
 // Send a string over UART1
 // Sends each char in the string one at a time
 void uart_sendStr(const char *data);
+
+void uart_interrupt_init();
+
+void UART1_Handler(void);
 
 #endif /* UART_H_ */

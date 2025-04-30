@@ -11,82 +11,106 @@
 #include <inc/tm4c123gh6pm.h>
 #include <stdint.h>
 #include "uart.h"
+#include <string.h>
+#include <math.h>
+
 
 void uart_init(void){
-    //TODO
-  //enable clock to GPIO port B
-  SYSCTL_RCGCGPIO_R |= 0b000010; //**
+	SYSCTL_RCGCGPIO_R |= 0x02;
+	SYSCTL_RCGCUART_R |= 0x02;
+	GPIO_PORTB_AFSEL_R |= 0b00000011;
+	GPIO_PORTB_PCTL_R |= 0x00000011;
+	GPIO_PORTB_DEN_R |= 0x03;
+	GPIO_PORTB_DIR_R |= 0b00000010;
 
-  //enable clock to UART1
-  SYSCTL_RCGCUART_R |= 0b00000010;
+	double fbrd;
+	int ibrd;
 
-  //wait for GPIOB and UART1 peripherals to be ready
-  while ((SYSCTL_PRGPIO_R & 0b10) == 0) {};
-  while ((SYSCTL_PRUART_R & 0b10) == 0) {};
-  //enable alternate functions on port B pins
-  GPIO_PORTB_AFSEL_R |= 0x03;
+	fbrd = 16000000.0 / (16.0 * 115200.0);
+	ibrd = floor(fbrd);
+	fbrd = (fbrd - ibrd) *64 + .5;
 
-  //enable digital functionality on port B pins
-  GPIO_PORTB_DEN_R |= 0x0F;
-
-  //enable UART1 Rx and Tx on port B pins
-  GPIO_PORTB_PCTL_R &= 0xFFFFFF00;
-  GPIO_PORTB_PCTL_R |= 0x00000011;
-
-  //calculate baud rate
-  uint16_t iBRD = 0x8; //use equations
-  uint16_t fBRD = 0x2C; //use equations
-
-  //turn off UART1 while setting it up
-  UART1_CTL_R &= ~0x01; //**
-
-  //set baud rate
-  //note: to take effect, there must be a write to LCRH after these assignments
-  UART1_IBRD_R = iBRD;
-  UART1_FBRD_R = fBRD;
-
-  //set frame, 8 data bits, 1 stop bit, no parity, no FIFO
-  //note: this write to LCRH must be after the BRD assignments
-  UART1_LCRH_R = 0x00000060;
-
-  //use system clock as source
-  //note from the datasheet UARTCCC register description:
-  //field is 0 (system clock) by default on reset
-  //Good to be explicit in your code
-  UART1_CC_R = 0x00;
-
-  //re-enable UART1 and also enable RX, TX (three bits)
-  //note from the datasheet UARTCTL register description:
-  //RX and TX are enabled by default on reset
-  //Good to be explicit in your code
-  //Be careful to not clear RX and TX enable bits
-  //(either preserve if already set or set them)
-  UART1_CTL_R |= 0x301;
-  //UART1_CTL_R |= 0x01; //**
+	UART1_CTL_R &= 0xFFFFFFFE;
+	UART1_IBRD_R = ibrd;
+	UART1_FBRD_R = fbrd;
+	UART1_LCRH_R = 0b01100000;
+	UART1_CC_R = 0x0;
+	UART1_CTL_R |= 0x1;
 
 }
-
 void uart_sendChar(char data){
-    //TODO
-    while(UART1_FR_R & 0x20){
+	while ((UART1_FR_R & 0x20) != 0){
 
-    }
-
-    UART1_DR_R = data;
+	}
+	UART1_DR_R = data;
 }
 
-char uart_receive(void){
-    //TODO
-    char data;
 
-    while(UART1_FR_R & UART_FR_RXFE){
+char uart_recieve(void){
+	char data = 0;
+	while((UART1_FR_R & UART_FR_RXFE)){
 
-    }
-
-    data = (char)(UART1_DR_R & 0xFF);
-    return data;
+	}
+	data = (char) (UART1_DR_R & 0xFF);
+	return data;
 }
 
 void uart_sendStr(const char *data){
-    //TODO for reference see lcd_puts from lcd.c file
+	while (*data != '\0'){
+		uart_sendChar(*data);
+		data++;
+	}
+	timer_waitMicros(10000);
 }
+
+
+void uart_interrupt_init(void){
+	UART1_CTL_R &= 0xFFFFFFFE;
+	UART1_ICR_R = 0xFFFF;
+	UART1_ICR_R = 0x0000;
+	UART1_IM_R |= 0x00000010;
+	NVIC_PRI1_R |= 0x00200000;
+	NVIC_EN0_R |= 0b01000000;
+	IntRegister(INT_UART1, UART1_Handler);
+	IntMasterEnable();
+	UART1_CTL_R |= 0x1;
+}
+
+void UART1_Handler(void){
+	if(UART1_MIS_R & 0x10){
+		char input;
+		input = UART1_DR_R & 0xFF;
+		uart_sendChar(input);
+
+		 if (input == 'm'){
+			doSomething = 1;
+
+				}
+		else if (input == 'w'){
+			doSomething = 2;
+		}
+		else if (input == 's'){
+			doSomething = 3;
+
+						}
+		else if (input == 'a'){
+			doSomething = 4;
+
+						}
+		else if (input == 'd'){
+			doSomething = 5;
+
+						}
+		else if (input == 'v'){
+			doSomething = 6;
+
+						}
+		else if (input == 'b'){
+			doSomething = 7;
+
+						}
+		UART1_ICR_R |= 0x10;
+	}
+}
+
+
