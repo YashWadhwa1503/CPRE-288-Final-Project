@@ -1,3 +1,4 @@
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
@@ -35,7 +36,7 @@ void runScan(float scanData[], bool state, short totalScans) {
      */
     double distance;
     double denom = 14937.0;
-    double exponent = -1/.933;
+    double exponent = -1 / 0.933;
 
     hCount = 1;
     char str[] = "\r\nDegrees   Distance(cm)\r\n";
@@ -45,32 +46,51 @@ void runScan(float scanData[], bool state, short totalScans) {
     char data[40];
     scan(0);
     timer_waitMillis(100);
-    for(i = 0; i <= 90; i++) { // Using IR scan raw IR values and put them in scanData
-        if(mode != state) { // Break out using interrupts
+
+    // Open the file "scans.txt" for writing
+    FILE *file = fopen("scans.txt", "w");  // "w" mode for writing (it will create the file if it doesn't exist)
+    if (file == NULL) {
+        uart_sendStr("\r\nError opening file for writing.\r\n");
+        return;
+    }
+
+    // Write a header to the file
+    fprintf(file, "Degrees   Distance(cm)\r\n");
+
+    for (i = 0; i <= 90; i++) { // Using IR scan raw IR values and put them in scanData
+        if (mode != state) { // Break out using interrupts
             break;
         }
 
         scan(i * 2);
 
         distance = 0;
-        for(scans = 0; scans < totalScans; scans++) {
+        for (scans = 0; scans < totalScans; scans++) {
             distance += adc_read();
         }
         distance /= totalScans * denom;
 
         distance = pow(distance, exponent);
-        if(distance - 5 <= 0) {
+        if (distance - 5 <= 0) {
             foundSmallest = true;
             break;
         }
         scanData[i] = distance;
 
-        sprintf(data, "\r\n%-10d%.2f", i*2, distance);
+        // Format the data to send via UART
+        sprintf(data, "\r\n%-10d%.2f", i * 2, distance);
         uart_sendStr(data);
+
+        // Write the data to the file
+        fprintf(file, "%-10d%.2f\r\n", i * 2, distance);
+
         timer_waitMillis(20);
     }
+
     uart_sendChar('\n');
-    free(data);
+
+    // Close the file after writing
+    fclose(file);
 }
 
 void displayObjects(float scanData[], struct someObject objects[]) {
@@ -232,6 +252,7 @@ int main(void)
 //        uart_sendChar(input);
         uart_sendChar(doSomething);
         switch(doSomething) {
+
         case 1:
             doSomething = 0;
             state = mode;
@@ -247,19 +268,19 @@ int main(void)
             break;
         case 2:
             doSomething = 0;
-            move_forward(sensor_data, 2);
+            move_forward(sensor_data, 50);
             break;
         case 3:
             doSomething = 0;
-            move_backwards(sensor_data, 2);
+            move_backwards(sensor_data, 50);
             break;
         case 4:
             doSomething = 0;
-            turn_left(sensor_data, 2);
+            turn_left(sensor_data, 20);
             break;
         case 5:
             doSomething = 0;
-            turn_right(sensor_data, 2);
+            turn_right(sensor_data, 20);
             break;
         case 6:
             doSomething = 0;
@@ -287,3 +308,7 @@ int main(void)
         }
     }
 }
+
+
+
+
