@@ -12,14 +12,13 @@
 #include "servo.h"
 #include "ping.h"
 
-// Volatile variables
 volatile int doSomething;
 volatile bool mode = true;
 volatile short hCount;
 volatile char input;
 volatile bool foundSmallest = false;
 
-//Object Struct
+
 struct someObject{
     short start;
     short finish;
@@ -29,11 +28,7 @@ struct someObject{
 };
 
 void runScan(float scanData[], bool state, short totalScans) {
-    /*
-     * Distance equation stuff y = 14937x^-.933
-     * y = raw ir data
-     * x = distance
-     */
+
     double distance;
     double denom = 14937.0;
     double exponent = -1 / 0.933;
@@ -47,18 +42,12 @@ void runScan(float scanData[], bool state, short totalScans) {
     scan(0);
     timer_waitMillis(100);
 
-    // Open the file "scans.txt" for writing
-    FILE *file = fopen("scans.txt", "w");  // "w" mode for writing (it will create the file if it doesn't exist)
-    if (file == NULL) {
-        uart_sendStr("\r\nError opening file for writing.\r\n");
-        return;
-    }
 
-    // Write a header to the file
-    fprintf(file, "Degrees   Distance(cm)\r\n");
 
-    for (i = 0; i <= 90; i++) { // Using IR scan raw IR values and put them in scanData
-        if (mode != state) { // Break out using interrupts
+
+
+    for (i = 0; i <= 90; i++) {
+        if (mode != state) {
             break;
         }
 
@@ -77,20 +66,17 @@ void runScan(float scanData[], bool state, short totalScans) {
         }
         scanData[i] = distance;
 
-        // Format the data to send via UART
+
         sprintf(data, "\r\n%-10d%.2f", i * 2, distance);
         uart_sendStr(data);
 
-        // Write the data to the file
-        fprintf(file, "%-10d%.2f\r\n", i * 2, distance);
 
         timer_waitMillis(20);
     }
 
     uart_sendChar('\n');
 
-    // Close the file after writing
-    fclose(file);
+
 }
 
 void displayObjects(float scanData[], struct someObject objects[]) {
@@ -127,7 +113,7 @@ void createObjects(float scanData[], struct someObject objects[]) {
     short objectCount = 0;
     short points = 0;
     short start = -1;
-//    short current = -1;
+
     float range = 4;
 
     int i;
@@ -188,15 +174,10 @@ short determineSmallest(struct someObject objects[]) {
     return smallestObject;
 }
 
-/**
- * main.c
- */
+
 int main(void)
 {
-    //    int measurements[101];
-    //    short measure_counter;
 
-    //Inits
     lcd_init();
     adc_init();
     uart_init();
@@ -204,46 +185,24 @@ int main(void)
     servo_init();
     ping_init();
 
-    // Sensor and scan
+
     oi_t *sensor_data = oi_alloc();
     oi_init(sensor_data);
 
-    // Arrays
-    char data[50];
+
     float scanData[91];
 
-    // Iterators
-    short scans;
-    short w; // For ping distance scan
-    short dothing; // For part 1 lab8
 
 
 
-    //Stoppers
+
+
+
     short totalScans = 10;
-
-    // Interrupt helper
     bool state = false;
-
-    // Objects array
     struct someObject objects[5];
-
-    // Smallest object stuff
     short smallestObjIndex;
-    float smallestObjDist;
     short smallestObjAngle;
-    short realScans = 0;
-    float pingScan = 0;
-    double denom = 14937.0;
-    double exponent = -1/.933;
-
-    // Driving to object stuff
-    /*
-     * true = turn clockwise
-     * false = turn counter clockwise
-     */
-    bool dir = true;
-
 
 
 
@@ -282,33 +241,9 @@ int main(void)
             doSomething = 0;
             turn_right(sensor_data, 20);
             break;
-        case 6:
-            doSomething = 0;
-            for(dothing = 0; dothing < 100; dothing++) {
-                sprintf(data, "\r\n%-10d", adc_read());
-                uart_sendStr(data);
-            }
-            break;
-        case 7:
-            doSomething = 0;
-            float distance = 0.0;
-            double denom = 14937.0;
-            double exponent = -1/.933;
-
-            for(scans = 0; scans < totalScans; scans++) {
-                distance += adc_read();
-            }
-            distance /= totalScans * denom;
-
-            distance = pow(distance, exponent);
-            sprintf(data, "\r\n%-10.2f", distance);
-            uart_sendStr(data);
-
-            break;
         }
     }
 }
-
 
 
 
